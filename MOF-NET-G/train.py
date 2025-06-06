@@ -159,6 +159,7 @@ model.load_state_dict(torch.load("model.pt")) #load best model
 
 y_label = []
 y_pred = []
+test_loss = 0  
 for topo,node_graphs,edge_graphs,label in test_dataloader:
 
     topo = topo.to(device)
@@ -169,17 +170,28 @@ for topo,node_graphs,edge_graphs,label in test_dataloader:
     #forward pass
     pred = model([topo, node_graphs, edge_graphs])
     
+    #calculate loss
+    loss_MAE = loss_func_MAE(pred,label.reshape([-1,1]))
+    #collect running loss
+    test_loss += loss_MAE.item()*pred.shape[0]
+
+    #collect for R² and parity plots
     for i in pred: 
         y_pred.append(i.item())
     for i in label:
         y_label.append(i.item())
+
+#calculate mean absolute test error
+average_test_loss_MAE = test_loss/len(test_dataset)
+print(f"Average test loss (MAE): {average_test_loss_MAE}\n")
+
+
 
 y_pred = np.array(y_pred)
 y_label = np.array(y_label)
 
 preds = y_label*100
 label = y_pred*100
-
 
 # Calculte R2 score
 r2score = R2Score()
@@ -200,7 +212,7 @@ fig, ax = plt.subplots(1,1, figsize=(13, 10))
 T = np.array([label,preds])
 color = gaussian_kde(T)(T)
 
-im = plt.scatter(label,preds, c=color, cmap='Reds',s=2)
+im = plt.scatter(label,preds, c=color, cmap='viridis',s=2)
 ax.set_aspect('equal')
 
 plt.plot([0, 42], [0, 42], c="black", linewidth=3, linestyle='--')
